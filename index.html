@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オンライン将棋アプリ</title>
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .board {
+            background-color: #e6cb94;
+            border: 2px solid #8b4513;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 60px);
+            grid-template-rows: repeat(9, 60px);
+            gap: 0;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            border: 1px solid #8b4513;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            background-color: #e6cb94;
+        }
+
+        .cell.selected {
+            background-color: #ffcc66;
+        }
+
+        .cell.valid-move {
+            background-color: rgba(144, 238, 144, 0.5);
+        }
+
+        .piece {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 50%;
+            background-color: #e6cb94;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .piece.sente {
+            color: #000;
+            transform: rotate(0deg);
+        }
+
+        .piece.gote {
+            color: #800000;
+            transform: rotate(180deg);
+        }
+
+        .captured-pieces {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background-color: #e6cb94;
+            border: 2px solid #8b4513;
+            width: 140px;
+            height: 580px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .captured-pieces-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .captured-pieces-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .captured-piece {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background-color: #e6cb94;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-info {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .game-status {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 8px 15px;
+            background-color: #4a7eb3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #3a6491;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .online-controls {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .room-id {
+            font-family: monospace;
+            padding: 5px 10px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin: 0 5px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            width: 300px;
+            max-width: 80%;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .coordinates {
+            position: absolute;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .row-coord {
+            left: 2px;
+            top: 2px;
+        }
+
+        .col-coord {
+            right: 2px;
+            bottom: 2px;
+        }
+
+        /* 既読インジケーター */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>オンライン将棋アプリ</h1>
+
+    <div class="game-info">
+        <div class="game-status" id="gameStatus">手番: 先手</div>
+        <div class="buttons">
+            <button id="resetGame">ゲームをリセット</button>
+            <button id="undoMove" disabled>一手戻る</button>
+        </div>
+    </div>
+
+    <div class="online-controls">
+        <div class="buttons">
+            <button id="createRoom">部屋を作成</button>
+            <button id="joinRoom">部屋に参加</button>
+            <button id="leaveRoom" disabled>部屋を退出</button>
+        </div>
+        <div id="roomInfo" style="margin-top: 10px; text-align: center; display: none;">
+            部屋ID: <span class="room-id" id="roomIdDisplay"></span>
+            <button id="copyRoomId">コピー</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="captured-pieces" id="goteCaptured">
+            <div class="captured-pieces-title">後手の持ち駒</div>
+            <div class="captured-pieces-container" id="goteCapturedContainer"></div>
+        </div>
+
+        <div class="board">
+            <div class="board-grid" id="board"></div>
+        </div>
+
+        <div class="captured-pieces" id="senteCaptured">
+            <div class="captured-pieces-title">先手の持ち駒</div>
+            <div class="captured-pieces-container" id="senteCapturedContainer"></div>
+        </div>
+    </div>
+
+    <div class="connection-status disconnected" id="connectionStatus">オフライン</div>
+
+    <!-- 駒を配置するモーダル -->
+    <div class="modal" id="dropPieceModal">
+        <div class="modal-content">
+            <h3>駒を配置する場所を選択してください</h3>
+            <div class="modal-buttons">
+                <button id="cancelDrop">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成り駒選択モーダル -->
+    <div class="modal" id="promotionModal">
+        <div class="modal-content">
+            <h3>駒を成りますか？</h3>
+            <div class="modal-buttons">
+                <button id="promoteYes">はい</button>
+                <button id="promoteNo">いいえ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 部屋参加モーダル -->
+    <div class="modal" id="joinRoomModal">
+        <div class="modal-content">
+            <h3>部屋IDを入力してください</h3>
+            <input type="text" id="roomIdInput" style="width: 100%; padding: 8px; margin-top: 10px;">
+            <div class="modal-buttons">
+                <button id="joinRoomConfirm">参加</button>
+                <button id="joinRoomCancel">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <script>
+        // ゲームの状態
+        const gameState = {
+            board: Array(9).fill().map(() => Array(9).fill(null)),
+            currentPlayer: 'sente', // 'sente' or 'gote'
+            selectedPiece: null,
+            selectedCell: null,
+            validMoves: [],
+            capturedPieces: {
+                sente: {},
+                gote: {}
+            },
+            moveHistory: [],
+            gameMode: 'local', // 'local' or 'online'
+            playerRole: null, // 'sente' or 'gote' (online mode)
+            connection: null,
+            peer: null,
+            roomId: null,
+            isConnected: false
+        };
+
+        // 駒の定義
+        const pieces = {
+            '歩': { kanji: '歩', sente: '歩', gote: '歩', promoted: 'と', canPromote: true, value: 1 },
+            '香': { kanji: '香', sente: '香', gote: '香', promoted: '杏', canPromote: true, value: 3 },
+            '桂': { kanji: '桂', sente: '桂', gote: '桂', promoted: '圭', canPromote: true, value: 4 },
+            '銀': { kanji: '銀', sente: '銀', gote: '銀', promoted: '全', canPromote: true, value: 5 },
+            '金': { kanji: '金', sente: '金', gote: '金', promoted: null, canPromote: false, value: 6 },
+            '角': { kanji: '角', sente: '角', gote: '角', promoted: '馬', canPromote: true, value: 8 },
+            '飛': { kanji: '飛', sente: '飛', gote: '飛', promoted: '龍', canPromote: true, value: 10 },
+            '玉': { kanji: '玉', sente: '王', gote: '玉', promoted: null, canPromote: false, value: 100 },
+            'と': { kanji: 'と', sente: 'と', gote: 'と', promoted: null, canPromote: false, value: 2, isPremoted: true },
+            '杏': { kanji: '杏', sente: '杏', gote: '杏', promoted: null, canPromote: false, value: 4, isPremoted: true },
+            '圭': { kanji: '圭', sente: '圭', gote: '圭', promoted: null, canPromote: false, value: 5, isPremoted: true },
+            '全': { kanji: '全', sente: '全', gote: '全', promoted: null, canPromote: false, value: 6, isPremoted: true },
+            '馬': { kanji: '馬', sente: '馬', gote: '馬', promoted: null, canPromote: false, value: 9, isPremoted: true },
+            '龍': { kanji: '龍', sente: '龍', gote: '龍', promoted: null, canPromote: false, value: 11, isPremoted: true }
+        };
+
+        // DOM要素
+        const boardElement = document.getElementById('board');
+        const gameStatusElement = document.getElementById('gameStatus');
+        const resetGameButton = document.getElementById('resetGame');
+        const undoMoveButton = document.getElementById('undoMove');
+        const senteCapturedContainer = document.getElementById('senteCapturedContainer');
+        const goteCapturedContainer = document.getElementById('goteCapturedContainer');
+        const dropPieceModal = document.getElementById('dropPieceModal');
+        const cancelDropButton = document.getElementById('cancelDrop');
+        const promotionModal = document.getElementById('promotionModal');
+        const promoteYesButton = document.getElementById('promoteYes');
+        const promoteNoButton = document.getElementById('promoteNo');
+        const createRoomButton = document.getElementById('createRoom');
+        const joinRoomButton = document.getElementById('joinRoom');
+        const leaveRoomButton = document.getElementById('leaveRoom');
+        const roomInfo = document.getElementById('roomInfo');
+        const roomIdDisplay = document.getElementById('roomIdDisplay');
+        const copyRoomIdButton = document.getElementById('copyRoomId');
+        const joinRoomModal = document.getElementById('joinRoomModal');
+        const roomIdInput = document.getElementById('roomIdInput');
+        const joinRoomConfirmButton = document.getElementById('joinRoomConfirm');
+        const joinRoomCancelButton = document.getElementById('joinRoomCancel');
+        const connectionStatusElement = document.getElementById('connectionStatus');
+        const notificationElement = document.getElementById('notification');
+
+        // 初期配置
+        const initialBoard = [
+            ['香', '桂', '銀', '金', '玉', '金', '銀', '桂', '香'],
+            [null, '角', null, null, null, null, null, '飛', null],
+            ['歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩'],
+            [null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null],
+            ['歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩'],
+            [null, '飛', null, null, null, null, null, '角', null],
+            ['香', '桂', '銀', '金', '玉', '金', '銀', '桂', '香']
+        ];
+
+        // 初期所有者
+        const initialOwners = [
+            ['gote', 'gote', 'gote', 'gote', 'gote', 'gote', 'gote', 'gote', 'gote'],
+            [null, 'gote', null, null, null, null, null, 'gote', null],
+            ['gote', 'gote', 'gote', 'gote', 'gote', 'gote', 'gote', 'gote', 'gote'],
+            [null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null],
+            ['sente', 'sente', 'sente', 'sente', 'sente', 'sente', 'sente', 'sente', 'sente'],
+            [null, 'sente', null, null, null, null, null, 'sente', null],
+            ['sente', 'sente', 'sente', 'sente', 'sente', 'sente', 'sente', 'sente', 'sente']
+        ];
+
+        // 駒の動き（相対座標）
+        const pieceMoves = {
+            '歩': {
+                sente: [{ row: -1, col: 0 }],
+                gote: [{ row: 1, col: 0 }]
+            },
+            '香': {
+                sente: Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: 0 })),
+                gote: Array.from({ length: 8 }, (_, i) => ({ row: i + 1, col: 0 }))
+            },
+            '桂': {
+                sente: [{ row: -2, col: -1 }, { row: -2, col: 1 }],
+                gote: [{ row: 2, col: -1 }, { row: 2, col: 1 }]
+            },
+            '銀': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 1, col: -1 }, { row: 1, col: 1 }
+                ],
+                gote: [
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 },
+                    { row: -1, col: -1 }, { row: -1, col: 1 }
+                ]
+            },
+            '金': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: 0 }
+                ],
+                gote: [
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: -1, col: 0 }
+                ]
+            },
+            '角': {
+                sente: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: (i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: (i + 1) }))
+                ],
+                gote: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: (i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: (i + 1) }))
+                ]
+            },
+            '飛': {
+                sente: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: (i + 1) }))
+                ],
+                gote: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: (i + 1) }))
+                ]
+            },
+            '玉': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 }
+                ],
+                gote: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 }
+                ]
+            },
+            // 成駒
+            'と': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: 0 }
+                ],
+                gote: [
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: -1, col: 0 }
+                ]
+            },
+            '杏': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: 0 }
+                ],
+                gote: [
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: -1, col: 0 }
+                ]
+            },
+            '圭': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: 0 }
+                ],
+                gote: [
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: -1, col: 0 }
+                ]
+            },
+            '全': {
+                sente: [
+                    { row: -1, col: -1 }, { row: -1, col: 0 }, { row: -1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: 1, col: 0 }
+                ],
+                gote: [
+                    { row: 1, col: -1 }, { row: 1, col: 0 }, { row: 1, col: 1 },
+                    { row: 0, col: -1 }, { row: 0, col: 1 },
+                    { row: -1, col: 0 }
+                ]
+            },
+            '馬': {
+                sente: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: (i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: (i + 1) })),
+                    { row: -1, col: 0 }, { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
+                ],
+                gote: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: (i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: (i + 1) })),
+                    { row: -1, col: 0 }, { row: 0, col: -1 }, { row: 0, col: 1 }, { row: 1, col: 0 }
+                ]
+            },
+            '龍': {
+                sente: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: (i + 1) })),
+                    { row: -1, col: -1 }, { row: -1, col: 1 }, { row: 1, col: -1 }, { row: 1, col: 1 }
+                ],
+                gote: [
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: -(i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: (i + 1), col: 0 })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: -(i + 1) })),
+                    ...Array.from({ length: 8 }, (_, i) => ({ row: 0, col: (i + 1) })),
+                    { row: -1, col: -1 }, { row: -1, col: 1 }, { row: 1, col: -1 }, { row: 1, col: 1 }
+                ]
+            }
+        };
+
+        // ゲーム初期化
+        function initializeGame() {
+            // ボードの初期化
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    gameState.board[row][col] = {
+                        piece: initialBoard[row][col],
+                        owner: initialOwners[row][col]
+                    };
+                }
+            }
+
+            // 持ち駒の初期化
+            gameState.capturedPieces = {
+                sente: {},
+                gote: {}
+            };
+
+            // 手番の初期化
+            gameState.currentPlayer = 'sente';
+            gameState.selectedPiece = null;
+            gameState.selectedCell = null;
+            gameState.validMoves = [];
+            gameState.moveHistory = [];
+
+            // UIの更新
+            renderBoard();
+            renderCapturedPieces();
+            updateGameStatus();
+            undoMoveButton.disabled = true;
+        }
+
+        // ボードのレンダリング
+        function renderBoard() {
+            boardElement.innerHTML = '';
+
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    const cellData = gameState.board[row][col];
+
+                    // 座標表示
+                    const rowCoord = document.createElement('span');
+                    rowCoord.className = 'coordinates row-coord';
+                    rowCoord.textContent = 9 - row;
+                    cell.appendChild(rowCoord);
+
+                    const colCoord = document.createElement('span');
+                    colCoord.className = 'coordinates col-coord';
+                    colCoord.textContent = ['１', '２', '３', '４', '５', '６', '７', '８', '９'][col];
+                    cell.appendChild(colCoord);
+
+                    // 選択中のセルをハイライト
+                    if (gameState.selectedCell && gameState.selectedCell.row === row && gameState.selectedCell.col === col) {
+                        cell.classList.add('selected');
+                    }
+
+                    // 有効な移動先をハイライト
+                    if (gameState.validMoves.some(move => move.row === row && move.col === col)) {
+                        cell.classList.add('valid-move');
+                    }
+
+                    if (cellData && cellData.piece) {
+                        const pieceElement = document.createElement('div');
+                        pieceElement.className = `piece ${cellData.owner}`;
+                        pieceElement.textContent = cellData.piece;
+                        pieceElement.dataset.row = row;
+                        pieceElement.dataset.col = col;
+
+                        cell.appendChild(pieceElement);
+                    }
+
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', handleCellClick);
+
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // 持ち駒のレンダリング
+        function renderCapturedPieces() {
+            senteCapturedContainer.innerHTML = '';
+            goteCapturedContainer.innerHTML = '';
+
+            // 先手の持ち駒
+            Object.entries(gameState.capturedPieces.sente).forEach(([piece, count]) => {
+                for (let i = 0; i < count; i++) {
+                    const capturedPiece = document.createElement('div');
+                    capturedPiece.className = 'captured-piece sente';
+                    capturedPiece.textContent = piece;
+                    capturedPiece.dataset.piece = piece;
+                    capturedPiece.addEventListener('click', handleCapturedPieceClick);
+                    senteCapturedContainer.appendChild(capturedPiece);
+                }
+            });
+
+            // 後手の持ち駒
+            Object.entries(gameState.capturedPieces.gote).forEach(([piece, count]) => {
+                for (let i = 0; i < count; i++) {
+                    const capturedPiece = document.createElement('div');
+                    capturedPiece.className = 'captured-piece gote';
+                    capturedPiece.textContent = piece;
+                    capturedPiece.dataset.piece = piece;
+                    capturedPiece.addEventListener('click', handleCapturedPieceClick);
+                    goteCapturedContainer.appendChild(capturedPiece);
+                }
+            });
+        }
+
+        // ゲーム状態の更新
+        function updateGameStatus() {
+            gameStatusElement.textContent = `手番: ${gameState.currentPlayer === 'sente' ? '先手' : '後手'}`;
+        }
+
+        // セルクリック時の処理
+        function handleCellClick(event) {
+            // オンラインモードで自分の手番でない場合は何もしない
+            if (gameState.gameMode === 'online' && gameState.playerRole !== gameState.currentPlayer) {
+                return;
+            }
+
+            const row = parseInt(event.currentTarget.dataset.row);
+            const col = parseInt(event.currentTarget.dataset.col);
+            const cellData = gameState.board[row][col];
+
+            // 持ち駒配置モード
+            if (gameState.selectedPiece && gameState.selectedPiece.isCaptured) {
+                handleDropPiece(row, col);
+                return;
+            }
+
+            // 自分の駒を選択
+            if (cellData && cellData.piece && cellData.owner === gameState.currentPlayer) {
+                selectPiece(row, col);
+                return;
+            }
+
+            // 駒移動
+            if (gameState.selectedCell) {
+                const validMove = gameState.validMoves.find(move => move.row === row && move.col === col);
+                if (validMove) {
+                    movePiece(row, col);
+                } else {
+                    clearSelection();
+                }
+                return;
+            }
+
+            clearSelection();
+        }
+
+        // 駒選択
+        function selectPiece(row, col) {
+            const piece = gameState.board[row][col].piece;
+            const owner = gameState.board[row][col].owner;
+
+            gameState.selectedCell = { row, col };
+            gameState.validMoves = getValidMoves(row, col, piece, owner);
+
+            renderBoard();
+        }
+
+        // 持ち駒クリック時の処理
+        function handleCapturedPieceClick(event) {
+            // オンラインモードで自分の手番でない場合は何もしない
+            if (gameState.gameMode === 'online' && gameState.playerRole !== gameState.currentPlayer) {
+                return;
+            }
+
+            const piece = event.currentTarget.dataset.piece;
+            const isCurrentPlayerPiece = event.currentTarget.classList.contains(gameState.currentPlayer);
+
+            if (!isCurrentPlayerPiece) {
+                return;
+            }
+
+            clearSelection();
+
+            gameState.selectedPiece = {
+                piece,
+                isCaptured: true,
+                owner: gameState.currentPlayer
+            };
+
+            gameState.validMoves = getValidDropPositions(piece);
+            renderBoard();
+
+            // モーダル表示
+            dropPieceModal.style.display = 'flex';
+        }
+
+        // 持ち駒を置ける場所を取得
+        function getValidDropPositions(piece) {
+            const validPositions = [];
+
+            // 駒の基本ルール
+            const isPawn = piece === '歩';
+            const isLance = piece === '香';
+            const isKnight = piece === '桂';
+
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    // 既に駒がある場所には置けない
+                    if (gameState.board[row][col].piece) {
+                        continue;
+                    }
+
+                    // 歩、香、桂の配置制限（先手）
+                    if (gameState.currentPlayer === 'sente') {
+                        // 歩は最前列に置けない
+                        if (isPawn && row === 0) continue;
+                        // 香は最前列に置けない
+                        if (isLance && row === 0) continue;
+                        // 桂は最前列と二列目に置けない
+                        if (isKnight && (row === 0 || row === 1)) continue;
+                    }
+
+                    // 歩、香、桂の配置制限（後手）
+                    if (gameState.currentPlayer === 'gote') {
+                        // 歩は最前列に置けない
+                        if (isPawn && row === 8) continue;
+                        // 香は最前列に置けない
+                        if (isLance && row === 8) continue;
+                        // 桂は最前列と二列目に置けない
+                        if (isKnight && (row === 8 || row === 7)) continue;
+                    }
+
+                    // 二歩の禁止
+                    if (isPawn) {
+                        let hasPawnInSameCol = false;
+                        for (let r = 0; r < 9; r++) {
+                            if (gameState.board[r][col].piece === '歩' &&
+                                gameState.board[r][col].owner === gameState.currentPlayer) {
+                                hasPawnInSameCol = true;
+                                break;
+                            }
+                        }
+                        if (hasPawnInSameCol) continue;
+                    }
+
+                    validPositions.push({ row, col });
+                }
+            }
+
+            return validPositions;
+        }
+
+        // 持ち駒配置処理
+        function handleDropPiece(row, col) {
+            // 有効な配置先かチェック
+            const validMove = gameState.validMoves.find(move => move.row === row && move.col === col);
+
+            if (!validMove) {
+                clearSelection();
+                dropPieceModal.style.display = 'none';
+                return;
+            }
+
+            // 配置前の状態を保存
+            saveMoveHistory();
+
+            // 持ち駒を減らす
+            gameState.capturedPieces[gameState.currentPlayer][gameState.selectedPiece.piece]--;
+            if (gameState.capturedPieces[gameState.currentPlayer][gameState.selectedPiece.piece] <= 0) {
+                delete gameState.capturedPieces[gameState.currentPlayer][gameState.selectedPiece.piece];
+            }
+
+            // 盤面に配置
+            gameState.board[row][col] = {
+                piece: gameState.selectedPiece.piece,
+                owner: gameState.currentPlayer
+            };
+
+            // 手番交代
+            gameState.currentPlayer = gameState.currentPlayer === 'sente' ? 'gote' : 'sente';
+
+            // UI更新
+            clearSelection();
+            renderBoard();
+            renderCapturedPieces();
+            updateGameStatus();
+            dropPieceModal.style.display = 'none';
+            undoMoveButton.disabled = false;
+
+            // オンラインモードの場合は状態を送信
+            if (gameState.gameMode === 'online' && gameState.connection) {
+                sendGameState();
+            }
+        }
+
+        // 有効な移動先を取得
+        function getValidMoves(row, col, piece, owner) {
+            const validMoves = [];
+            const moves = pieceMoves[piece][owner];
+
+            // 角行と飛車は長距離移動が可能
+            if (piece === '角' || piece === '飛' || piece === '馬' || piece === '龍' || piece === '香') {
+                // 方向ごとに処理
+                let directions = [];
+
+                if (piece === '角' || piece === '馬') {
+                    // 斜め方向
+                    directions = [
+                        { row: -1, col: -1 }, { row: -1, col: 1 },
+                        { row: 1, col: -1 }, { row: 1, col: 1 }
+                    ];
+
+                    // 馬の場合は十字方向も追加
+                    if (piece === '馬') {
+                        directions.push(
+                            { row: -1, col: 0 }, { row: 0, col: -1 },
+                            { row: 0, col: 1 }, { row: 1, col: 0 }
+                        );
+                    }
+                } else if (piece === '飛' || piece === '龍') {
+                    // 十字方向
+                    directions = [
+                        { row: -1, col: 0 }, { row: 0, col: -1 },
+                        { row: 0, col: 1 }, { row: 1, col: 0 }
+                    ];
+
+                    // 龍の場合は斜め方向も追加（1マス）
+                    if (piece === '龍') {
+                        directions.push(
+                            { row: -1, col: -1 }, { row: -1, col: 1 },
+                            { row: 1, col: -1 }, { row: 1, col: 1 }
+                        );
+                    }
+                } else if (piece === '香') {
+                    // 香は前方のみ
+                    directions = [
+                        owner === 'sente' ? { row: -1, col: 0 } : { row: 1, col: 0 }
+                    ];
+                }
+
+                // 各方向に進む
+                for (const dir of directions) {
+                    let currentRow = row;
+                    let currentCol = col;
+                    let steps = 0;
+
+                    // 龍と馬の斜め1マス移動の場合は1回だけ
+                    const isOneStepMove = (
+                        (piece === '龍' && Math.abs(dir.row) === 1 && Math.abs(dir.col) === 1) ||
+                        (piece === '馬' && (dir.row === 0 || dir.col === 0))
+                    );
+
+                    while (true) {
+                        steps++;
+                        currentRow += dir.row;
+                        currentCol += dir.col;
+
+                        // 盤外判定
+                        if (currentRow < 0 || currentRow >= 9 || currentCol < 0 || currentCol >= 9) {
+                            break;
+                        }
+
+                        const targetCell = gameState.board[currentRow][currentCol];
+
+                        // 空マス
+                        if (!targetCell.piece) {
+                            validMoves.push({ row: currentRow, col: currentCol });
+                        }
+                        // 敵の駒
+                        else if (targetCell.owner !== owner) {
+                            validMoves.push({ row: currentRow, col: currentCol });
+                            break;
+                        }
+                        // 自分の駒
+                        else {
+                            break;
+                        }
+
+                        // 1マス移動のみの場合はループ終了
+                        if (isOneStepMove) {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // 通常の1マス移動の駒
+                for (const move of moves) {
+                    const newRow = row + move.row;
+                    const newCol = col + move.col;
+
+                    // 盤外判定
+                    if (newRow < 0 || newRow >= 9 || newCol < 0 || newCol >= 9) {
+                        continue;
+                    }
+
+                    const targetCell = gameState.board[newRow][newCol];
+
+                    // 空マスか敵の駒がある場所のみ移動可能
+                    if (!targetCell.piece || targetCell.owner !== owner) {
+                        validMoves.push({ row: newRow, col: newCol });
+                    }
+                }
+            }
+
+            return validMoves;
+        }
+
+        // 駒移動処理
+        function movePiece(targetRow, targetCol) {
+            const sourceRow = gameState.selectedCell.row;
+            const sourceCol = gameState.selectedCell.col;
+            const sourcePiece = gameState.board[sourceRow][sourceCol].piece;
+            const owner = gameState.board[sourceRow][sourceCol].owner;
+
+            // 移動前の状態を保存
+            saveMoveHistory();
+
+            // 移動先に駒がある場合は捕獲
+            if (gameState.board[targetRow][targetCol].piece) {
+                const capturedPiece = gameState.board[targetRow][targetCol].piece;
+                let originalPiece = capturedPiece;
+
+                // 成り駒を元に戻す
+                if (pieces[capturedPiece] && pieces[capturedPiece].isPremoted) {
+                    // 元の駒を検索
+                    for (const [key, value] of Object.entries(pieces)) {
+                        if (value.promoted === capturedPiece) {
+                            originalPiece = key;
+                            break;
+                        }
+                    }
+                }
+
+                // 持ち駒に追加
+                if (gameState.capturedPieces[owner][originalPiece]) {
+                    gameState.capturedPieces[owner][originalPiece]++;
+                } else {
+                    gameState.capturedPieces[owner][originalPiece] = 1;
+                }
+            }
+
+            // 駒の成り判定
+            const canPromote = checkPromotion(sourceRow, targetRow, sourcePiece, owner);
+
+            if (canPromote) {
+                // 成るかどうかの選択モーダルを表示
+                gameState.pendingMove = { sourceRow, sourceCol, targetRow, targetCol };
+                promotionModal.style.display = 'flex';
+                return;
+            } else {
+                // 成れない場合は直接移動
+                completeMoveWithoutPromotion(sourceRow, sourceCol, targetRow, targetCol);
+            }
+        }
+
+        // 成り判定
+        function checkPromotion(sourceRow, targetRow, piece, owner) {
+            // 成れる駒かどうか
+            if (!pieces[piece] || !pieces[piece].canPromote) {
+                return false;
+            }
+
+            // 既に成り駒の場合
+            if (pieces[piece].isPremoted) {
+                return false;
+            }
+
+            // 敵陣または自陣からの移動
+            if (owner === 'sente') {
+                // 敵陣（0-2行目）への移動または敵陣からの移動
+                return sourceRow <= 2 || targetRow <= 2;
+            } else {
+                // 敵陣（6-8行目）への移動または敵陣からの移動
+                return sourceRow >= 6 || targetRow >= 6;
+            }
+        }
+
+        // 成らずに移動
+        function completeMoveWithoutPromotion(sourceRow, sourceCol, targetRow, targetCol) {
+            // 駒を移動
+            gameState.board[targetRow][targetCol] = {
+                piece: gameState.board[sourceRow][sourceCol].piece,
+                owner: gameState.board[sourceRow][sourceCol].owner
+            };
+            gameState.board[sourceRow][sourceCol] = { piece: null, owner: null };
+
+            // 手番交代
+            gameState.currentPlayer = gameState.currentPlayer === 'sente' ? 'gote' : 'sente';
+
+            // UI更新
+            clearSelection();
+            renderBoard();
+            renderCapturedPieces();
+            updateGameStatus();
+            undoMoveButton.disabled = false;
+
+            // オンラインモードの場合は状態を送信
+            if (gameState.gameMode === 'online' && gameState.connection) {
+                sendGameState();
+            }
+        }
+
+        // 成って移動
+        function completePromotionMove(sourceRow, sourceCol, targetRow, targetCol) {
+            const piece = gameState.board[sourceRow][sourceCol].piece;
+            const promotedPiece = pieces[piece].promoted;
+
+            // 駒を移動して成る
+            gameState.board[targetRow][targetCol] = {
+                piece: promotedPiece,
+                owner: gameState.board[sourceRow][sourceCol].owner
+            };
+            gameState.board[sourceRow][sourceCol] = { piece: null, owner: null };
+
+            // 手番交代
+            gameState.currentPlayer = gameState.currentPlayer === 'sente' ? 'gote' : 'sente';
+
+            // UI更新
+            clearSelection();
+            renderBoard();
+            renderCapturedPieces();
+            updateGameStatus();
+            undoMoveButton.disabled = false;
+
+            // オンラインモードの場合は状態を送信
+            if (gameState.gameMode === 'online' && gameState.connection) {
+                sendGameState();
+            }
+        }
+
+        // 選択解除
+        function clearSelection() {
+            gameState.selectedCell = null;
+            gameState.selectedPiece = null;
+            gameState.validMoves = [];
+            renderBoard();
+        }
+
+        // 移動履歴の保存
+        function saveMoveHistory() {
+            const boardCopy = JSON.parse(JSON.stringify(gameState.board));
+            const capturedPiecesCopy = JSON.parse(JSON.stringify(gameState.capturedPieces));
+
+            gameState.moveHistory.push({
+                board: boardCopy,
+                capturedPieces: capturedPiecesCopy,
+                currentPlayer: gameState.currentPlayer
+            });
+        }
+
+        // 一手戻る
+        function undoMove() {
+            if (gameState.moveHistory.length === 0) {
+                return;
+            }
+
+            // オンラインモードでは戻れない
+            if (gameState.gameMode === 'online') {
+                return;
+            }
+
+            const lastState = gameState.moveHistory.pop();
+            gameState.board = lastState.board;
+            gameState.capturedPieces = lastState.capturedPieces;
+            gameState.currentPlayer = lastState.currentPlayer;
+
+            clearSelection();
+            renderBoard();
+            renderCapturedPieces();
+            updateGameStatus();
+
+            if (gameState.moveHistory.length === 0) {
+                undoMoveButton.disabled = true;
+            }
+        }
+
+        // オンライン機能 //
+
+        // PeerJS初期化
+        function initializePeerJS() {
+            gameState.peer = new Peer();
+
+            gameState.peer.on('open', (id) => {
+                console.log('あなたのPeerID:', id);
+            });
+
+            gameState.peer.on('connection', (conn) => {
+                handleIncomingConnection(conn);
+            });
+
+            gameState.peer.on('error', (err) => {
+                console.error('PeerJS エラー:', err);
+                showNotification('接続エラーが発生しました');
+                setConnectionStatus(false);
+            });
+        }
+
+        // 部屋作成
+        function createRoom() {
+            if (!gameState.peer || gameState.peer.destroyed) {
+                initializePeerJS();
+            }
+
+            gameState.peer.on('open', (id) => {
+                gameState.roomId = id;
+                gameState.playerRole = 'sente'; // 部屋作成者は先手
+                gameState.gameMode = 'online';
+
+                // UI更新
+                roomIdDisplay.textContent = id;
+                roomInfo.style.display = 'block';
+                createRoomButton.disabled = true;
+                joinRoomButton.disabled = true;
+                leaveRoomButton.disabled = false;
+
+                showNotification('部屋を作成しました。相手が参加するのを待っています...');
+                setConnectionStatus(false);
+
+                // ゲームリセット
+                initializeGame();
+            });
+        }
+
+        // 部屋参加
+        function joinRoom() {
+            joinRoomModal.style.display = 'flex';
+        }
+
+        // 部屋参加確認
+        function confirmJoinRoom() {
+            const roomId = roomIdInput.value.trim();
+
+            if (!roomId) {
+                alert('部屋IDを入力してください');
+                return;
+            }
+
+            if (!gameState.peer || gameState.peer.destroyed) {
+                initializePeerJS();
+            }
+
+            const conn = gameState.peer.connect(roomId);
+
+            conn.on('open', () => {
+                gameState.connection = conn;
+                gameState.roomId = roomId;
+                gameState.playerRole = 'gote'; // 参加者は後手
+                gameState.gameMode = 'online';
+
+                // UI更新
+                roomIdDisplay.textContent = roomId;
+                roomInfo.style.display = 'block';
+                createRoomButton.disabled = true;
+                joinRoomButton.disabled = true;
+                leaveRoomButton.disabled = false;
+                joinRoomModal.style.display = 'none';
+
+                showNotification('部屋に参加しました');
+                setConnectionStatus(true);
+
+                // データ受信設定
+                setupDataHandling(conn);
+
+                // 接続通知
+                conn.send({ type: 'join', message: '相手が部屋に参加しました' });
+
+                // ゲームリセット
+                initializeGame();
+            });
+
+            conn.on('error', (err) => {
+                console.error('接続エラー:', err);
+                alert('接続できませんでした。部屋IDが正しいか確認してください。');
+                joinRoomModal.style.display = 'none';
+            });
+        }
+
+        // 入力接続処理
+        function handleIncomingConnection(conn) {
+            gameState.connection = conn;
+
+            // データ受信設定
+            setupDataHandling(conn);
+
+            showNotification('相手が部屋に参加しました');
+            setConnectionStatus(true);
+
+            // 接続通知を送信
+            conn.send({ type: 'welcome', message: '部屋に接続されました' });
+        }
+
+        // データ処理設定
+        function setupDataHandling(conn) {
+            conn.on('data', (data) => {
+                console.log('データ受信:', data);
+
+                if (data.type === 'gameState') {
+                    // ゲーム状態の同期
+                    gameState.board = data.board;
+                    gameState.capturedPieces = data.capturedPieces;
+                    gameState.currentPlayer = data.currentPlayer;
+
+                    clearSelection();
+                    renderBoard();
+                    renderCapturedPieces();
+                    updateGameStatus();
+
+                    showNotification('相手が駒を動かしました');
+                } else if (data.type === 'join' || data.type === 'welcome') {
+                    showNotification(data.message);
+                }
+            });
+
+            conn.on('close', () => {
+                showNotification('相手との接続が切断されました');
+                setConnectionStatus(false);
+            });
+        }
+
+        // ゲーム状態送信
+        function sendGameState() {
+            if (!gameState.connection) return;
+
+            gameState.connection.send({
+                type: 'gameState',
+                board: gameState.board,
+                capturedPieces: gameState.capturedPieces,
+                currentPlayer: gameState.currentPlayer
+            });
+        }
+
+        // 部屋退出
+        function leaveRoom() {
+            if (gameState.connection) {
+                gameState.connection.close();
+            }
+
+            if (gameState.peer) {
+                gameState.peer.destroy();
+            }
+
+            gameState.connection = null;
+            gameState.roomId = null;
+            gameState.gameMode = 'local';
+            gameState.playerRole = null;
+
+            // UI更新
+            roomInfo.style.display = 'none';
+            createRoomButton.disabled = false;
+            joinRoomButton.disabled = false;
+            leaveRoomButton.disabled = true;
+
+            showNotification('部屋から退出しました');
+            setConnectionStatus(false);
+
+            // ゲームリセット
+            initializeGame();
+        }
+
+        // 接続状態表示更新
+        function setConnectionStatus(isConnected) {
+            connectionStatusElement.className = isConnected
+                ? 'connection-status connected'
+                : 'connection-status disconnected';
+            connectionStatusElement.textContent = isConnected
+                ? 'オンライン'
+                : 'オフライン';
+            gameState.isConnected = isConnected;
+        }
+
+        // 通知表示
+        function showNotification(message) {
+            notificationElement.textContent = message;
+            notificationElement.style.display = 'block';
+
+            setTimeout(() => {
+                notificationElement.style.display = 'none';
+            }, 3000);
+        }
+
+        // 部屋IDコピー
+        function copyRoomId() {
+            navigator.clipboard.writeText(gameState.roomId)
+                .then(() => {
+                    showNotification('部屋IDをコピーしました');
+                })
+                .catch(err => {
+                    console.error('コピーに失敗しました:', err);
+                });
+        }
+
+        // イベントリスナー
+        resetGameButton.addEventListener('click', initializeGame);
+        undoMoveButton.addEventListener('click', undoMove);
+        cancelDropButton.addEventListener('click', () => {
+            clearSelection();
+            dropPieceModal.style.display = 'none';
+        });
+        promoteYesButton.addEventListener('click', () => {
+            const move = gameState.pendingMove;
+            completePromotionMove(move.sourceRow, move.sourceCol, move.targetRow, move.targetCol);
+            promotionModal.style.display = 'none';
+        });
+        promoteNoButton.addEventListener('click', () => {
+            const move = gameState.pendingMove;
+            completeMoveWithoutPromotion(move.sourceRow, move.sourceCol, move.targetRow, move.targetCol);
+            promotionModal.style.display = 'none';
+        });
+        createRoomButton.addEventListener('click', createRoom);
+        joinRoomButton.addEventListener('click', joinRoom);
+        leaveRoomButton.addEventListener('click', leaveRoom);
+        copyRoomIdButton.addEventListener('click', copyRoomId);
+        joinRoomConfirmButton.addEventListener('click', confirmJoinRoom);
+        joinRoomCancelButton.addEventListener('click', () => {
+            joinRoomModal.style.display = 'none';
+        });
+
+        // ゲーム初期化
+        initializeGame();
+    </script>
+</body>
+
+</html>

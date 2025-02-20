@@ -410,13 +410,13 @@
         // 初期配置
         const initialBoard = [
             ['香', '桂', '銀', '金', '玉', '金', '銀', '桂', '香'],
-            [null, '角', null, null, null, null, null, '飛', null],
-            ['歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩'],
-            [null, null, null, null, null, null, null, null, null],
-            [null, null, null, null, null, null, null, null, null],
-            [null, null, null, null, null, null, null, null, null],
-            ['歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩'],
             [null, '飛', null, null, null, null, null, '角', null],
+            ['歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩'],
+            [null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null],
+            ['歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩', '歩'],
+            [null, '角', null, null, null, null, null, '飛', null],
             ['香', '桂', '銀', '金', '玉', '金', '銀', '桂', '香']
         ];
 
@@ -783,7 +783,6 @@
             renderBoard();
 
             // モーダル表示
-            dropPieceModal.style.display = 'flex';
         }
 
         // 持ち駒を置ける場所を取得
